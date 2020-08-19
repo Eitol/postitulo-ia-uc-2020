@@ -199,8 +199,19 @@ class State(object):
         # retornará 2
         return Action(np.argmax(self.q(state)))
     
-    def compute_bellman(self):
-        pass
+    @staticmethod
+    def compute_bellman_optimality_equation(current_q: float, next_row: np.ndarray,
+                                            alpha: float, reward: float, gamma: float) -> float:
+        """
+        # Bellman optimality equation for q*
+        :param current_q: the current desition quality
+        :param next_row: the next row state
+        :param alpha: the current alpha
+        :param reward: the current reward
+        :param gamma:
+        :return:
+        """
+        return current_q + alpha * (reward + gamma * np.max(next_row) - current_q)
     
     def run_episode(self, alpha: float, gamma: float, state: 'State', total_rw: float) -> Tuple['State', bool, float]:
         """
@@ -219,8 +230,9 @@ class State(object):
         next_state, reward, done = self.act(state, action)
         total_rw += reward
         current_q = self.q(state)[action.value]
-        next_q = self.q(next_state)
-        quality = current_q + alpha * (reward + gamma * np.max(next_q) - current_q)
+        next_row = self.q(next_state)
+        
+        quality = self.compute_bellman_optimality_equation(current_q, next_row, alpha, reward, gamma)
         self.q(state)[action.value] = quality
         return next_state, done, total_rw
     
