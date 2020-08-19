@@ -4,6 +4,7 @@ Adaptation: Hector Oliveros
 """
 
 import enum
+from dataclasses import dataclass
 from typing import List, Tuple
 from copy import deepcopy
 import numpy as np
@@ -43,6 +44,17 @@ GAMMA = 1.0
 EXPLORATION_FACTOR = 0.2
 
 
+@dataclass
+class QLearningConfig:
+    expect_reproducibility: bool
+    seed: float
+    n_episodes: int
+    max_episode_steps: int
+    min_alpha: int
+    alphas: np.ndarray
+    exploration_factor: 0.2
+
+
 class GridItem(enum.Enum):
     ZOMBIE = 'z'
     CAR = 'c'
@@ -59,13 +71,6 @@ class Action(enum.Enum):
     LEFT = 2
     RIGHT = 3
 
-
-ACTIONS = [
-    Action.UP,
-    Action.DOWN,
-    Action.LEFT,
-    Action.RIGHT
-]
 
 Grid = List[List[GridItem]]
 Coordinate = List[int]
@@ -136,13 +141,11 @@ class State(object):
             raise ValueError(f"Unknown action {action}")
         return new_coord
     
-    def act(self, state: 'State', action: Action) -> Tuple['State', int, bool]:
+    def execute_action(self, state: 'State', action: Action) -> Tuple['State', int, bool]:
         """
-        Toma un estado y una acción, recompensa y si este episodio se ha completado
-        
         :param state: El estado actual
         :param action: Acción a ajecutar
-        :return:
+        :return: Retorna el nuevo estado, la recompensa, y si finalizó la ejecución
         """
         coord = self.compute_new_car_pos(state, action)
         grid_item = state.grid[coord[X]][coord[Y]]
@@ -179,7 +182,7 @@ class State(object):
         """
         state_id = state.get_id()
         if state_id not in self.q_table:
-            self.q_table[state_id] = np.zeros(len(ACTIONS))
+            self.q_table[state_id] = np.zeros(len(Action.__members__))
         return self.q_table[state_id]
     
     def choose_action(self, state: 'State') -> Action:
@@ -191,7 +194,7 @@ class State(object):
         # Se basa en: "Epsilon-Greedy Algorithm"
         # see: https://www.geeksforgeeks.org/epsilon-greedy-algorithm-in-reinforcement-learning
         if random.uniform(0, 1) < EXPLORATION_FACTOR:
-            return Action(random.choice(ACTIONS))
+            return Action(random.randint(0, len(Action.__members__) - 1))
         
         # np.argmax(array): retorna el índice del mayor valor.
         #                           0  1  2  3
@@ -203,7 +206,9 @@ class State(object):
     def compute_bellman_optimality_equation(current_q: float, next_row: np.ndarray,
                                             alpha: float, reward: float, gamma: float) -> float:
         """
-        # Bellman optimality equation for q*
+        Bellman optimality equation for q*
+        see: https://youtu.be/qhRNvCVVJaA?t=107
+        
         :param current_q: the current desition quality
         :param next_row: the next row state
         :param alpha: the current alpha
@@ -222,22 +227,22 @@ class State(object):
         :param state:
         :param total_rw:
         :return: Una tupla que:
-         [0]: indica el estado final del episodio
+         [0]: Indica el estado final del episodio
          [1]: Si debe terminar la corrida
          [2]: El total reward
         """
         action = self.choose_action(state)
-        next_state, reward, done = self.act(state, action)
+        next_state, reward, done = self.execute_action(state, action)
         total_rw += reward
         current_q = self.q(state)[action.value]
         next_row = self.q(next_state)
-        
         quality = self.compute_bellman_optimality_equation(current_q, next_row, alpha, reward, gamma)
         self.q(state)[action.value] = quality
         return next_state, done, total_rw
     
     def train(self, n_episodes: int, max_episode_steps: int, gamma: float, alphas: np.ndarray):
         for e in range(n_episodes):
+            # En cada episodio el estado se resetea
             state = self
             total_reward = 0
             alpha = alphas[e]
