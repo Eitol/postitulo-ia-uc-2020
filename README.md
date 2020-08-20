@@ -29,7 +29,9 @@ Link: https://web.stanford.edu/class/psych209/Readings/SuttonBartoIPRLBook2ndEd.
 
 ##### Reinforcement learning:
  
+#### MOOCS
 
+- https://www.coursera.org/learn/fundamentals-of-reinforcement-learning
 
 ##### Q-Learning
 Claves:
